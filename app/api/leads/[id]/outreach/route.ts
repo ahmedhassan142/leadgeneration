@@ -7,12 +7,13 @@ import { generateOutreachEmail } from '@/lib/email/templates';
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectToDatabase();
+    const { id } = await params;
     
-    const lead = await Lead.findById(params.id);
+    const lead = await Lead.findById(id);
     
     if (!lead) {
       return NextResponse.json(
@@ -26,7 +27,7 @@ export async function POST(
       const emailContent = generateOutreachEmail(lead);
       lead.outreach = {
         subject: emailContent.subject,
-        message: emailContent.message,
+        message: emailContent.body,
         sent: false
       };
       await lead.save();
@@ -43,12 +44,13 @@ export async function POST(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectToDatabase();
+    const { id } = await params;
     
-    const lead = await Lead.findById(params.id);
+    const lead = await Lead.findById(id);
     
     if (!lead || !lead.outreach) {
       return NextResponse.json(

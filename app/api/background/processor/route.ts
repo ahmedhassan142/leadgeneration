@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { getNextJob, completeJob, failJob } from '@/lib/queue/mongo-queue';
 import { scrapeGoogleMaps } from '@/lib/scraper/googleMapsScraper';
-import { analyzeWebsite } from '@/lib/analyzer/websiteAnalyzer';
+import { analyzeWebsite } from '@/lib/analyzer/website-Analyzer';
 import { extractEmails } from '@/lib/analyzer/emailExtractor';
 import { analyzeWithAI } from '@/lib/analyzer/geminiAnalyzer';
 import { calculateScore } from '@/lib/scoring/leadScorer';
@@ -37,7 +37,6 @@ export async function POST(request: Request) {
                 break;
               case 'analyze':
                 result = await analyzeWebsite(
-                  job.data.leadId, 
                   job.data.website
                 );
                 break;

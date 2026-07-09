@@ -32,10 +32,9 @@ export async function POST(request: Request) {
     }
 
     // Generate email content
-    const { subject, body } = emailTemplates.generate(
-      template || 'intro',
+    const { subject, body } = emailTemplates.generateForSequence(
       lead,
-      customMessage
+      template || 'intro'
     );
 
     // Send email

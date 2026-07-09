@@ -6,12 +6,13 @@ import { logger } from '@/lib/scraper/utils/logger';
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectToDatabase();
+    const { id } = await params;
 
-    const sequence = await Sequence.findOne({ id: params.id });
+    const sequence = await Sequence.findOne({ id });
     if (!sequence) {
       return NextResponse.json(
         { error: 'Sequence not found' },

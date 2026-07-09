@@ -257,7 +257,18 @@ export default function OutreachSidebar({
     }
   };
 
-  const navItems = [
+  const navItems: {
+    section: string;
+    items: {
+      name: string;
+      icon: any;
+      onClick: () => void;
+      active: boolean;
+      badge?: number;
+      color?: string;
+      bgColor?: string;
+    }[];
+  }[] = [
     {
       section: 'Main',
       items: [

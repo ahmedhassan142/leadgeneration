@@ -185,8 +185,8 @@ export default function LeadForm({ initialData, onSubmit, onCancel }: LeadFormPr
         >
           Cancel
         </Button>
-        <Button type="submit" loading={loading}>
-          {initialData ? 'Update Lead' : 'Create Lead'}
+        <Button type="submit" disabled={loading}>
+          {loading ? 'Saving...' : initialData ? 'Update Lead' : 'Create Lead'}
         </Button>
       </div>
     </form>

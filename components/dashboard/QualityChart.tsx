@@ -63,7 +63,7 @@ export default function QualityChart({ data, aiScores = [] }: QualityChartProps)
               outerRadius={80}
               paddingAngle={5}
               dataKey="value"
-              label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+              label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
               labelLine={false}
             >
               {chartData.map((entry, index) => (
@@ -71,7 +71,7 @@ export default function QualityChart({ data, aiScores = [] }: QualityChartProps)
               ))}
             </Pie>
             <Tooltip 
-              formatter={(value: number) => [`${value} leads`, 'Count']}
+              formatter={(value: any) => [`${value} leads`, 'Count']}
               contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '0.5rem', color: 'white' }}
             />
             <Legend />

@@ -186,14 +186,13 @@ export default function LeadFilters({ filters, setFilters }: LeadFiltersProps) {
           {Object.keys(filters).length > 0 && (
             <div className="mt-4 flex flex-wrap gap-2">
               {
-              //@ts-ignore
-              Object.entries(filters).map(([key, value]) => (
+              (Object.entries(filters) as [string, any][]).map(([key, value]) => (
                 value && (
                   <span
                     key={key}
                     className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800"
                   >
-                    {key}: {value as string}
+                    {key}: {String(value)}
                     <button
                       onClick={() => {
                         const newFilters = { ...filters };

@@ -1,7 +1,7 @@
 // app/inbound/page.tsx - UPDATED WITH TEMPERATURE FILTERING
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactElement } from 'react';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Navbar';
 import InboundButtons from '@/components/Inboundbutton';
@@ -133,7 +133,7 @@ export default function InboundPage() {
   };
 
   const getSourceIcon = (source: string) => {
-  const icons: Record<string, { icon: JSX.Element, color: string }> = {
+  const icons: Record<string, { icon: ReactElement, color: string }> = {
     reddit: { icon: <ChatBubbleLeftIcon className="h-4 w-4" />, color: 'text-orange-500' },
     twitter: { 
       icon: <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231z"/></svg>, 
@@ -165,7 +165,7 @@ export default function InboundPage() {
 
   const getTemperatureBadge = (temp: string | undefined) => {
     //@ts-ignore
-    const badges: Record<string, { icon: JSX.Element, text: string, color: string }> = {
+    const badges: Record<string, { icon: ReactElement, text: string, color: string }> = {
       hot: { 
         icon: <FireIconSolid className="h-3 w-3" />, 
         text: 'Hot', 

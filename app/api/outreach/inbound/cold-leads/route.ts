@@ -145,6 +145,7 @@ export async function POST(request: Request) {
 
             // Generate AI email
             const emailContent = await generateColdEmail({
+              emailType: 'first',
               companyName: lead.author || 'there',
               website: lead.sourceUrl,
               source: lead.source,

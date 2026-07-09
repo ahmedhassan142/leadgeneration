@@ -5,12 +5,13 @@ import { Lead } from '@/lib/db/models/Lead';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectToDatabase();
+    const { id } = await params;
     
-    const lead = await Lead.findById(params.id).lean();
+    const lead = await Lead.findById(id).lean();
     
     if (!lead) {
       return NextResponse.json(
@@ -30,14 +31,15 @@ export async function GET(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectToDatabase();
+    const { id } = await params;
     const updates = await request.json();
     
     const lead = await Lead.findByIdAndUpdate(
-      params.id,
+      id,
       { $set: updates },
       { new: true }
     ).lean();
@@ -53,12 +55,13 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectToDatabase();
+    const { id } = await params;
     
-    await Lead.findByIdAndDelete(params.id);
+    await Lead.findByIdAndDelete(id);
     
     return NextResponse.json({ 
       success: true,

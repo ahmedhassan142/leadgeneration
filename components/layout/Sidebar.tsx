@@ -105,7 +105,7 @@ export default function Sidebar({ open, setOpen }: SidebarProps) {
                         >
                           <item.icon className="h-6 w-6 shrink-0" />
                           <span className="flex-1">{item.name}</span>
-                          {item.badge !== undefined && item.badge > 0 && (
+                          {item.badge != null && item.badge > 0 && (
                             <span className="ml-auto w-9 min-w-max whitespace-nowrap rounded-full bg-blue-600 px-2.5 py-0.5 text-center text-xs font-medium text-white">
                               {item.badge}
                             </span>

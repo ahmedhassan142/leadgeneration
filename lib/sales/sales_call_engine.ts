@@ -1,255 +1,158 @@
-// lib/sales/sales-call-engine-working.ts
-import { SalesConversation, SalesStage, STAGE_NAMES } from './sales-conversations';
-import * as readline from 'readline';
-import { exec } from 'child_process';
-import * as fs from 'fs';
-import * as path from 'path';
-import { promisify } from 'util';
+// lib/sales/sales_call_engine.ts
+// Web-friendly sales call engine. Manages in-memory conversations (one per
+// callId) backed by the SalesConversation class which uses the Groq-powered
+// llamaClient. Designed to run in a serverless (Vercel) environment — no
+// PowerShell, no readline, no process.exit.
+//
+// Exports the three functions consumed by app/api/sales-call/voice/route.ts
+// and scripts/createandtestcall.ts:
+//   - startSalesCall(leadId)            -> { success, callId, aiResponse, error? }
+//   - handleProspectResponse(callId, msg) -> { aiResponse, ended, outcome }
+//   - endCall(callId, reason?)           -> { success, outcome, duration }
+import { SalesConversation, SalesStage, STAGE_NAMES } from "./sales-conversations";
+import { logger } from "@/lib/scraper/utils/logger";
 
-const execAsync = promisify(exec);
-let typingMode = false;
-
-// Create temporary PowerShell scripts instead of inline commands
-async function runPowerShellScript(scriptContent: string): Promise<string> {
-    const tempScript = path.join(process.cwd(), `temp_ps_${Date.now()}.ps1`);
-    fs.writeFileSync(tempScript, scriptContent, 'utf8');
-    
-    try {
-        const { stdout } = await execAsync(`powershell -ExecutionPolicy Bypass -File "${tempScript}"`);
-        return stdout;
-    } finally {
-        if (fs.existsSync(tempScript)) {
-            fs.unlinkSync(tempScript);
-        }
-    }
+interface ActiveCall {
+  callId: string;
+  leadId: string;
+  leadName: string;
+  conversation: SalesConversation;
+  startedAt: number;
+  ended: boolean;
 }
 
-async function speak(text: string): Promise<void> {
-    console.log(`\n🔊 Alex: ${text}`);
-    
-    const psScript = `
-        Add-Type -AssemblyName System.Speech
-        $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
-        $synth.Volume = 100
-        $synth.Rate = 0
-        $synth.Speak('${text.replace(/'/g, "''")}')
-    `;
-    
-    try {
-        await runPowerShellScript(psScript);
-        await new Promise(r => setTimeout(r, 500));
-    } catch (error) {
-        console.log("(Continuing without speech)");
-    }
+// In-memory store. In production with multiple instances this should be Redis,
+// but for a single serverless instance this is sufficient.
+const activeCalls = new Map<string, ActiveCall>();
+
+function generateCallId(): string {
+  return `call_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-async function listen(): Promise<string> {
-    console.log(`\n🎙️ Listening...`);
-    
-    for (let i = 3; i > 0; i--) {
-        process.stdout.write(`\rStarting in ${i}... `);
-        await new Promise(r => setTimeout(r, 1000));
-    }
-    console.log(`\r🎤 Speak now!       `);
-    
-    const psScript = `
-        Add-Type -AssemblyName System.Speech
-        $recognizer = New-Object System.Speech.Recognition.SpeechRecognitionEngine
-        $recognizer.SetInputToDefaultAudioDevice()
-        $grammar = New-Object System.Speech.Recognition.DictationGrammar
-        $recognizer.LoadGrammar($grammar)
-        
-        try {
-            $result = $recognizer.Recognize([TimeSpan]::FromSeconds(5))
-            if ($result -and $result.Text) {
-                Write-Host $result.Text
-            } else {
-                Write-Host ""
-            }
-        } catch {
-            Write-Host ""
-        }
-    `;
-    
-    try {
-        const result = await runPowerShellScript(psScript);
-        const speech = result.trim();
-        
-        if (speech && speech.length > 0) {
-            console.log(`\n👤 You: ${speech}`);
-            return speech;
-        }
-        
-        console.log(`\n⚠️ No speech detected`);
-        return "";
-        
-    } catch (error) {
-        console.log(`\n❌ Error listening`);
-        return "";
-    }
-}
+/**
+ * Start a new AI sales call for a lead. Returns the first AI greeting.
+ */
+export async function startSalesCall(
+  leadId: string,
+  leadName?: string
+): Promise<{
+  success: boolean;
+  callId?: string;
+  aiResponse?: string;
+  error?: string;
+}> {
+  try {
+    const name = leadName || "there";
+    const callId = generateCallId();
+    const conversation = new SalesConversation(leadId, name);
 
-async function getUserInput(): Promise<string> {
-    if (typingMode) {
-        const rl = readline.createInterface({
-            input: process.stdin,
-            output: process.stdout
-        });
-        
-        return new Promise((resolve) => {
-            rl.question('\n📝 Type your response: ', (answer) => {
-                rl.close();
-                if (answer.toLowerCase() === 'mic') {
-                    typingMode = false;
-                    console.log("🎤 Switching back to microphone...");
-                    resolve('');
-                } else {
-                    resolve(answer);
-                }
-            });
-        });
-    }
-    
-    const speech = await listen();
-    if (speech && speech.length > 0) {
-        return speech;
-    }
-    
-    console.log('\n💡 No speech detected. Type "type" to switch to typing mode');
-    
-    const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout
+    // Generate the opening line of the conversation.
+    const greeting = await conversation.generateResponse("Hello");
+
+    activeCalls.set(callId, {
+      callId,
+      leadId,
+      leadName: name,
+      conversation,
+      startedAt: Date.now(),
+      ended: false,
     });
-    
-    return new Promise((resolve) => {
-        rl.question('\n👉 ', (answer) => {
-            rl.close();
-            if (answer.toLowerCase() === 'type') {
-                typingMode = true;
-                console.log('📝 Switched to typing mode. Type "mic" to switch back.');
-                resolve('');
-            } else if (answer.trim().length > 0) {
-                resolve(answer);
-            } else {
-                resolve('');
-            }
-        });
-    });
+
+    logger.info(`Sales call started`, { callId, leadId, leadName: name });
+
+    return {
+      success: true,
+      callId,
+      aiResponse: greeting,
+    };
+  } catch (error) {
+    logger.error("Failed to start sales call", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Unknown error starting call",
+    };
+  }
 }
 
-function logStage(stage: SalesStage): void {
-    console.log(`\n${'='.repeat(50)}`);
-    console.log(`📍 ${STAGE_NAMES[stage]}`);
-    console.log(`${'='.repeat(50)}`);
-}
+/**
+ * Send the prospect's response to the active call and get the AI's reply.
+ */
+export async function handleProspectResponse(
+  callId: string,
+  message: string
+): Promise<{
+  aiResponse?: string;
+  ended?: boolean;
+  outcome?: string;
+  error?: string;
+}> {
+  const call = activeCalls.get(callId);
+  if (!call) {
+    return { error: "Call not found or already ended" };
+  }
+  if (call.ended) {
+    return {
+      ended: true,
+      outcome: "already_ended",
+      aiResponse: "This call has already ended.",
+    };
+  }
 
-// Simple test function
-async function quickMicTest(): Promise<boolean> {
-    console.log("\n🔍 Quick microphone test...");
-    
-    const psScript = `
-        Add-Type -AssemblyName System.Speech
-        $recognizer = New-Object System.Speech.Recognition.SpeechRecognitionEngine
-        $recognizer.SetInputToDefaultAudioDevice()
-        Write-Host "READY"
-        try {
-            $result = $recognizer.Recognize([TimeSpan]::FromSeconds(3))
-            if ($result) { Write-Host "SUCCESS" } else { Write-Host "FAILED" }
-        } catch { Write-Host "ERROR" }
-    `;
-    
-    try {
-        const result = await runPowerShellScript(psScript);
-        return result.includes("SUCCESS");
-    } catch {
-        return false;
+  try {
+    const aiResponse = await call.conversation.generateResponse(message);
+    const ended = call.conversation.shouldEndCall();
+    let outcome: string | undefined;
+
+    if (ended) {
+      call.ended = true;
+      const stage = call.conversation.getCurrentStage();
+      outcome =
+        stage === SalesStage.END
+          ? "completed"
+          : "ended_early";
+      logger.info(`Call ${callId} ended naturally`, { outcome, stage: STAGE_NAMES[stage] });
     }
+
+    return { aiResponse, ended, outcome };
+  } catch (error) {
+    logger.error(`Error in call ${callId}`, error);
+    return {
+      aiResponse: "I'm sorry, could you repeat that?",
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
 }
 
-export async function startSalesCall(leadId: string, leadName: string): Promise<void> {
-    const conversation = new SalesConversation(leadId, leadName);
-    
-    console.clear();
-    console.log("=".repeat(60));
-    console.log("SALES CALL ENGINE");
-    console.log("=".repeat(60));
-    console.log(`\n📞 Calling: ${leadName}`);
-    
-    // Test microphone first
-    console.log("\n🔍 Testing microphone...");
-    const micWorks = await quickMicTest();
-    
-    if (micWorks) {
-        console.log("✅ Microphone detected and working!\n");
-    } else {
-        console.log("⚠️ Microphone test failed. Will use typing mode.\n");
-        typingMode = true;
-    }
-    
-    console.log("💡 Commands:");
-    console.log("   - Speak naturally into your microphone");
-    console.log("   - Type 'quit' to end the call");
-    console.log("   - Type 'type' to switch to typing mode");
-    console.log("   - Type 'mic' to switch back to microphone\n");
-    
-    const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout
-    });
-    
-    await new Promise<void>((resolve) => {
-        rl.question("Press Enter to start... ", () => resolve());
-    });
-    
-    logStage(conversation.getCurrentStage());
-    
-    await speak("Hey, this is Alex. We build websites and apps. Got a minute?");
-    conversation.addAIResponse("Hey, this is Alex...");
-    
-    let turn = 0;
-    const MAX_TURNS = 15;
-    
-    while (turn < MAX_TURNS && !conversation.shouldEndCall()) {
-        turn++;
-        
-        console.log(`\n--- Turn ${turn}/${MAX_TURNS} ---`);
-        
-        const userInput = await getUserInput();
-        
-        if (userInput.toLowerCase() === 'quit') {
-            await speak("Thanks for your time! Have a great day!");
-            break;
-        }
-        
-        if (!userInput || userInput.trim().length === 0) {
-            continue;
-        }
-        
-        conversation.addProspectMessage(userInput);
-        logStage(conversation.getCurrentStage());
-        
-        console.log("🤔 Thinking...");
-        const aiResponse = await conversation.generateResponse(userInput);
-        
-        await speak(aiResponse);
-        
-        if (conversation.shouldEndCall()) {
-            await speak("Thank you for the conversation!");
-            break;
-        }
-    }
-    
-    console.log("\n" + "=".repeat(60));
-    console.log("✅ Call completed!");
-    console.log("=".repeat(60));
-    
-    rl.close();
-    process.exit(0);
+/**
+ * End an active call manually.
+ */
+export async function endCall(
+  callId: string,
+  reason?: string
+): Promise<{
+  success: boolean;
+  outcome?: string;
+  duration?: number;
+  error?: string;
+}> {
+  const call = activeCalls.get(callId);
+  if (!call) {
+    return { success: false, error: "Call not found" };
+  }
+
+  const duration = Math.round((Date.now() - call.startedAt) / 1000);
+  const outcome = reason || "ended_by_user";
+  call.ended = true;
+
+  logger.info(`Call ${callId} ended`, { outcome, duration });
+
+  // Keep the record briefly so any final polling can read the outcome, then
+  // schedule cleanup.
+  setTimeout(() => activeCalls.delete(callId), 60_000);
+
+  return { success: true, outcome, duration };
 }
 
-// Run directly
-if (require.main === module) {
-    const leadName = process.argv[2] || "Ahmed";
-    startSalesCall("lead_001", leadName).catch(console.error);
-}
+// Backwards-compatible export for any code that may still expect a default.
+export default { startSalesCall, handleProspectResponse, endCall };

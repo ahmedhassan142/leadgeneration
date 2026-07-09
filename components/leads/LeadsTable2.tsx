@@ -99,7 +99,7 @@ export default function LeadTable({ leads, loading, onDelete, onCall }: LeadTabl
                   )}
                 </td>
                 <td className="px-6 py-4">
-                  <Badge status={lead.status} />
+                  <Badge>{lead.status}</Badge>
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center">
