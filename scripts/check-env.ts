@@ -1,0 +1,12 @@
+import dotenv from 'dotenv';
+import path from 'path';
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+console.log('SMTP_HOST:', JSON.stringify(process.env.SMTP_HOST));
+console.log('SMTP_PORT:', JSON.stringify(process.env.SMTP_PORT));
+console.log('SMTP_USER:', JSON.stringify(process.env.SMTP_USER));
+console.log('SMTP_PASSWORD:', JSON.stringify(process.env.SMTP_PASSWORD));
+console.log('SMTP_PASSWORD length:', process.env.SMTP_PASSWORD?.length);
+console.log('SMTP_PASSWORD first char code:', process.env.SMTP_PASSWORD?.charCodeAt(0));
+console.log('MONGODB_URI starts with:', process.env.MONGODB_URI?.substring(0, 30) + '...');
+console.log('GROQ_API_KEY starts with:', process.env.GROQ_API_KEY?.substring(0, 15) + '...');
+console.log('GEMINI_API_KEY starts with:', process.env.GEMINI_API_KEY?.substring(0, 15) + '...');
