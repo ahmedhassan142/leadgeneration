@@ -4,7 +4,7 @@ import { Lead } from '@/lib/db/models/Lead';
 import { Outreach } from '@/lib/db/models/Outreach';
 import { Sequence } from '@/lib/db/models/Sequence';
 
-const MONGODB_URI = 'mongodb+srv://ah770643:PASSWORD_REMOVED@cluster0.bdbqw.mongodb.net/lead?retryWrites=true&w=majority&appName=Cluster0';
+const MONGODB_URI = process.env.MONGODB_URI || '';
 
 async function removeAllLeads() {
   console.log('\n🗑️ REMOVING ALL LEADS DATA');

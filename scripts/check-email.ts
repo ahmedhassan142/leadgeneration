@@ -2,7 +2,7 @@
 import mongoose from 'mongoose';
 import { Lead } from '@/lib/db/models/Lead';
 
-const MONGODB_URI = 'mongodb+srv://ah770643:PASSWORD_REMOVED@cluster0.bdbqw.mongodb.net/lead?retryWrites=true&w=majority&appName=Cluster0';
+const MONGODB_URI = process.env.MONGODB_URI || '';
 
 async function checkLeadEmails() {
   await mongoose.connect(MONGODB_URI);

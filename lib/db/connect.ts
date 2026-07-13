@@ -1,7 +1,7 @@
 // lib/db/connect.ts
 import mongoose from 'mongoose';
 
-const MONGODB_URI = process.env.MONGODB_URI||"mongodb+srv://ah770643:PASSWORD_REMOVED@cluster0.bdbqw.mongodb.net/lead?retryWrites=true&w=majority&appName=Cluster0";
+const MONGODB_URI = process.env.MONGODB_URI;
 
 if (!MONGODB_URI) {
   throw new Error('Please define the MONGODB_URI environment variable inside .env.local');
