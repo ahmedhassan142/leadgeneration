@@ -33,7 +33,7 @@ function getTransporter() {
     const host = process.env.SMTP_HOST||'smtp.hostinger.com';
     const port = parseInt(process.env.SMTP_PORT || '465');
     const user = process.env.SMTP_USER||'ahmed@ahtech.fun';
-    const pass = process.env.SMTP_PASSWORD||'@Hmed1254';
+    const pass = process.env.SMTP_PASSWORD||'YOUR_HOSTINGER_PASSWORD';
 
     if (!host || !user || !pass) {
       throw new Error('SMTP configuration missing. Check your environment variables.');
